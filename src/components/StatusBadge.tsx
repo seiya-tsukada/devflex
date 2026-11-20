@@ -31,7 +31,7 @@ export function ProjectStatusTag({ status }: { status: ProjectStatus }) {
   const styles: Record<ProjectStatus, string> = {
     active: 'text-emerald-800 border-emerald-200 bg-emerald-50',
     paused: 'text-amber-800 border-amber-200 bg-amber-50',
-    archived: 'text-[#4b5563] border-[#d1d5db] bg-[#f3f4f6]',
+    archived: 'text-gray-600 border-gray-300 bg-gray-100',
   };
   const Icon = status === 'active' ? CheckCircle2 : status === 'paused' ? PauseCircle : Ban;
   return (
@@ -46,14 +46,14 @@ export function ProjectStatusTag({ status }: { status: ProjectStatus }) {
 
 export function TaskStatusTag({ status }: { status: TaskStatus }) {
   const styles: Record<TaskStatus, string> = {
-    backlog: 'text-[#4b5563] border-[#d1d5db] bg-[#f3f4f6]',
-    ready: 'text-[#1f2937] border-[#cbd5e1] bg-[#f8fafc]',
+    backlog: 'text-gray-600 border-gray-300 bg-gray-100',
+    ready: 'text-gray-800 border-slate-300 bg-slate-50',
     queued: 'text-amber-800 border-amber-200 bg-amber-50',
-    running: 'text-[#0f766e] border-[#99f6e4] bg-[#f0fdfa]',
+    running: 'text-accent border-teal-200 bg-teal-50',
     review: 'text-sky-800 border-sky-200 bg-sky-50',
     completed: 'text-emerald-800 border-emerald-200 bg-emerald-50',
     failed: 'text-red-800 border-red-200 bg-red-50',
-    cancelled: 'text-[#6b7280] border-[#e5e7eb] bg-[#f9fafb]',
+    cancelled: 'text-gray-500 border-gray-200 bg-gray-50',
   };
   const Icon =
     status === 'running'
@@ -84,8 +84,8 @@ export function PriorityTag({ priority }: { priority: TaskPriority }) {
   const styles: Record<TaskPriority, string> = {
     critical: 'text-red-800 border-red-200 bg-red-50',
     high: 'text-amber-800 border-amber-200 bg-amber-50',
-    medium: 'text-[#374151] border-[#d1d5db] bg-[#f9fafb]',
-    low: 'text-[#6b7280] border-[#e5e7eb] bg-[#f9fafb]',
+    medium: 'text-ink-soft border-gray-300 bg-gray-50',
+    low: 'text-gray-500 border-gray-200 bg-gray-50',
   };
   return (
     <span
@@ -99,10 +99,10 @@ export function PriorityTag({ priority }: { priority: TaskPriority }) {
 export function ExecutionStatusTag({ status }: { status: ExecutionStatus }) {
   const styles: Record<ExecutionStatus, string> = {
     queued: 'text-amber-800 border-amber-200 bg-amber-50',
-    running: 'text-[#0f766e] border-[#99f6e4] bg-[#f0fdfa]',
+    running: 'text-accent border-teal-200 bg-teal-50',
     completed: 'text-emerald-800 border-emerald-200 bg-emerald-50',
     failed: 'text-red-800 border-red-200 bg-red-50',
-    cancelled: 'text-[#6b7280] border-[#e5e7eb] bg-[#f9fafb]',
+    cancelled: 'text-gray-500 border-gray-200 bg-gray-50',
   };
   const Icon =
     status === 'running'
@@ -132,7 +132,7 @@ export function ConnectionStatusTag({ status }: { status: AgentConnectionStatus 
     connected: 'text-emerald-800 border-emerald-200 bg-emerald-50',
     disconnected: 'text-amber-800 border-amber-200 bg-amber-50',
     error: 'text-red-800 border-red-200 bg-red-50',
-    not_configured: 'text-[#4b5563] border-[#d1d5db] bg-[#f3f4f6]',
+    not_configured: 'text-gray-600 border-gray-300 bg-gray-100',
   };
   const Icon =
     status === 'connected'
@@ -155,7 +155,7 @@ export function PullRequestStatusTag({ status }: { status: PullRequestStatus }) 
     open: 'text-emerald-800 border-emerald-200 bg-emerald-50',
     merged: 'text-sky-800 border-sky-200 bg-sky-50',
     closed: 'text-red-800 border-red-200 bg-red-50',
-    draft: 'text-[#4b5563] border-[#d1d5db] bg-[#f3f4f6]',
+    draft: 'text-gray-600 border-gray-300 bg-gray-100',
   };
   const Icon = status === 'merged' ? GitMerge : GitPullRequest;
   return (

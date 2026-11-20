@@ -165,7 +165,7 @@ export function ProjectsView({
 
   if (selectedProjectId) {
     if (detailLoading || !detail) {
-      return <div className="p-8 text-sm text-[#5b6472]">プロジェクト詳細を読み込み中...</div>;
+      return <div className="p-8 text-sm text-muted">プロジェクト詳細を読み込み中...</div>;
     }
 
     const openTasks = detail.tasks.filter(
@@ -180,19 +180,19 @@ export function ProjectsView({
             <button
               type="button"
               onClick={() => onSelectProject(null)}
-              className="inline-flex items-center gap-1.5 rounded-[3px] border border-[#d2d7e2] bg-[#ffffff] hover:bg-[#f8f9fb] px-3 py-1.5 text-xs text-[#374151] whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 rounded-[3px] border border-line-strong bg-surface hover:bg-elevated px-3 py-1.5 text-xs text-ink-soft whitespace-nowrap"
             >
               <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
               一覧に戻る
             </button>
             <div className="min-w-0">
               <div className="flex items-center gap-2.5">
-                <h1 className="font-display text-xl font-semibold text-[#111827] truncate">
+                <h1 className="font-display text-xl font-semibold text-ink truncate">
                   {detail.project.name}
                 </h1>
                 <ProjectStatusTag status={detail.project.status} />
               </div>
-              <p className="text-xs text-[#5b6472] mt-0.5 truncate">
+              <p className="text-xs text-muted mt-0.5 truncate">
                 {detail.project.description || '説明なし'}
               </p>
             </div>
@@ -202,7 +202,7 @@ export function ProjectsView({
             <button
               type="button"
               onClick={() => openEditModal(detail.project)}
-              className="inline-flex items-center gap-1.5 rounded-[3px] border border-[#d2d7e2] bg-[#ffffff] hover:bg-[#f8f9fb] px-3 py-1.5 text-xs text-[#374151] whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 rounded-[3px] border border-line-strong bg-surface hover:bg-elevated px-3 py-1.5 text-xs text-ink-soft whitespace-nowrap"
             >
               <Edit3 className="w-3.5 h-3.5" aria-hidden="true" />
               編集
@@ -220,32 +220,32 @@ export function ProjectsView({
 
         {/* Project Overview Meta */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] p-4 md:col-span-2">
-            <p className="text-xs text-[#5b6472]">GitHub リポジトリ</p>
+          <div className="rounded-[3px] border border-line bg-surface p-4 md:col-span-2">
+            <p className="text-xs text-muted">GitHub リポジトリ</p>
             {detail.project.repositoryUrl ? (
               <a
                 href={detail.project.repositoryUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-mono text-[#0f766e] hover:text-[#0d645d] hover:underline break-all"
+                className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-mono text-accent hover:text-accent-hover hover:underline break-all"
               >
                 {detail.project.repositoryUrl}
                 <ExternalLink className="w-3 h-3 shrink-0" />
               </a>
             ) : (
-              <p className="mt-1.5 text-xs text-[#64748b]">未設定</p>
+              <p className="mt-1.5 text-xs text-subtle">未設定</p>
             )}
           </div>
-          <div className="rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] p-4">
-            <p className="text-xs text-[#5b6472]">デフォルトブランチ</p>
-            <p className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-mono text-[#111827]">
-              <GitBranch className="w-3.5 h-3.5 text-[#64748b]" aria-hidden="true" />
+          <div className="rounded-[3px] border border-line bg-surface p-4">
+            <p className="text-xs text-muted">デフォルトブランチ</p>
+            <p className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-mono text-ink">
+              <GitBranch className="w-3.5 h-3.5 text-subtle" aria-hidden="true" />
               {detail.project.defaultBranch}
             </p>
           </div>
-          <div className="rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] p-4">
-            <p className="text-xs text-[#5b6472]">未完了タスク / 実行数</p>
-            <p className="mt-1.5 text-sm font-mono tabular-nums text-[#111827]">
+          <div className="rounded-[3px] border border-line bg-surface p-4">
+            <p className="text-xs text-muted">未完了タスク / 実行数</p>
+            <p className="mt-1.5 text-sm font-mono tabular-nums text-ink">
               {openTasks.length} タスク / {detail.executions.length} 実行
             </p>
           </div>
@@ -253,27 +253,27 @@ export function ProjectsView({
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Tasks */}
-          <section className="lg:col-span-7 rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#dfe3ea] bg-[#f8f9fb]">
-              <h2 className="font-display text-sm font-medium text-[#111827]">
+          <section className="lg:col-span-7 rounded-[3px] border border-line bg-surface overflow-hidden">
+            <div className="px-4 py-3 border-b border-line bg-elevated">
+              <h2 className="font-display text-sm font-medium text-ink">
                 プロジェクトタスク ({detail.tasks.length})
               </h2>
             </div>
             {detail.tasks.length === 0 ? (
-              <div className="p-6 text-xs text-[#64748b] text-center">
+              <div className="p-6 text-xs text-subtle text-center">
                 このプロジェクトにはタスクがありません。
               </div>
             ) : (
-              <div className="divide-y divide-[#eef0f4]">
+              <div className="divide-y divide-sunken">
                 {detail.tasks.map((t) => (
                   <div
                     key={t.id}
-                    className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-[#f8fafc]"
+                    className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-slate-50"
                   >
                     <button
                       type="button"
                       onClick={() => onOpenTask(t.id)}
-                      className="text-xs font-medium text-[#111827] hover:text-[#0f766e] text-left truncate"
+                      className="text-xs font-medium text-ink hover:text-accent text-left truncate"
                     >
                       {t.title}
                     </button>
@@ -285,23 +285,23 @@ export function ProjectsView({
           </section>
 
           {/* Assigned Agents */}
-          <section className="lg:col-span-5 rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#dfe3ea] bg-[#f8f9fb]">
-              <h2 className="font-display text-sm font-medium text-[#111827]">
+          <section className="lg:col-span-5 rounded-[3px] border border-line bg-surface overflow-hidden">
+            <div className="px-4 py-3 border-b border-line bg-elevated">
+              <h2 className="font-display text-sm font-medium text-ink">
                 関連エージェント ({detail.agents.length})
               </h2>
             </div>
             {detail.agents.length === 0 ? (
-              <div className="p-6 text-xs text-[#64748b] text-center">
+              <div className="p-6 text-xs text-subtle text-center">
                 割り当てられたエージェントはまだありません。
               </div>
             ) : (
-              <div className="divide-y divide-[#eef0f4]">
+              <div className="divide-y divide-sunken">
                 {detail.agents.map((a) => (
                   <div key={a.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs font-medium text-[#111827]">{a.name}</p>
-                      <p className="text-[11px] text-[#5b6472]">{PROVIDER_LABELS[a.provider]}</p>
+                      <p className="text-xs font-medium text-ink">{a.name}</p>
+                      <p className="text-[11px] text-muted">{PROVIDER_LABELS[a.provider]}</p>
                     </div>
                     <ConnectionStatusTag status={a.connectionStatus} />
                   </div>
@@ -313,23 +313,23 @@ export function ProjectsView({
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Executions & PRs */}
-          <section className="lg:col-span-6 rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#dfe3ea] bg-[#f8f9fb]">
-              <h2 className="font-display text-sm font-medium text-[#111827]">最近の実行履歴</h2>
+          <section className="lg:col-span-6 rounded-[3px] border border-line bg-surface overflow-hidden">
+            <div className="px-4 py-3 border-b border-line bg-elevated">
+              <h2 className="font-display text-sm font-medium text-ink">最近の実行履歴</h2>
             </div>
             {detail.executions.length === 0 ? (
-              <div className="p-6 text-xs text-[#64748b] text-center">実行履歴はありません。</div>
+              <div className="p-6 text-xs text-subtle text-center">実行履歴はありません。</div>
             ) : (
-              <div className="divide-y divide-[#eef0f4]">
+              <div className="divide-y divide-sunken">
                 {detail.executions.slice(0, 8).map((exec) => (
                   <div
                     key={exec.id}
-                    className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-[#f8fafc]"
+                    className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-slate-50"
                   >
                     <button
                       type="button"
                       onClick={() => onOpenExecution(exec.id)}
-                      className="text-xs text-[#374151] hover:text-[#0f766e] font-mono truncate"
+                      className="text-xs text-ink-soft hover:text-accent font-mono truncate"
                     >
                       {exec.id} · {formatDateTime(exec.startedAt)}
                     </button>
@@ -340,20 +340,20 @@ export function ProjectsView({
             )}
           </section>
 
-          <section className="lg:col-span-6 rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#dfe3ea] bg-[#f8f9fb]">
-              <h2 className="font-display text-sm font-medium text-[#111827]">
+          <section className="lg:col-span-6 rounded-[3px] border border-line bg-surface overflow-hidden">
+            <div className="px-4 py-3 border-b border-line bg-elevated">
+              <h2 className="font-display text-sm font-medium text-ink">
                 関連 Pull Requests & アクティビティ
               </h2>
             </div>
-            <div className="divide-y divide-[#eef0f4]">
+            <div className="divide-y divide-sunken">
               {linkedPrs.map((t) => (
                 <div key={t.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
                   <a
                     href={t.pullRequest!.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-[#0f766e] hover:text-[#0d645d] hover:underline truncate"
+                    className="text-xs text-accent hover:text-accent-hover hover:underline truncate"
                   >
                     {t.pullRequest!.title}
                   </a>
@@ -362,14 +362,14 @@ export function ProjectsView({
               ))}
               {detail.activityLogs.slice(0, 5).map((act) => (
                 <div key={act.id} className="px-4 py-2.5 text-xs">
-                  <p className="text-[#374151]">{act.description}</p>
-                  <p className="text-[11px] text-[#64748b] mt-0.5 font-mono">
+                  <p className="text-ink-soft">{act.description}</p>
+                  <p className="text-[11px] text-subtle mt-0.5 font-mono">
                     {ACTIVITY_EVENT_LABELS[act.eventType]} · {formatDateTime(act.createdAt)}
                   </p>
                 </div>
               ))}
               {linkedPrs.length === 0 && detail.activityLogs.length === 0 && (
-                <div className="p-6 text-xs text-[#64748b] text-center">
+                <div className="p-6 text-xs text-subtle text-center">
                   アクティビティ記録はまだありません。
                 </div>
               )}
@@ -414,17 +414,17 @@ export function ProjectsView({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-[#111827]">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
             プロジェクト管理
           </h1>
-          <p className="text-xs text-[#5b6472] mt-1">
+          <p className="text-xs text-muted mt-1">
             リポジトリ・デフォルトブランチ・開発プロジェクトの状態を管理します
           </p>
         </div>
         <button
           type="button"
           onClick={openCreateModal}
-          className="inline-flex items-center gap-1.5 rounded-[3px] bg-[#0f766e] hover:bg-[#0d645d] px-3.5 py-2 text-xs font-semibold text-[#ffffff] whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 rounded-[3px] bg-accent hover:bg-accent-hover px-3.5 py-2 text-xs font-semibold text-white whitespace-nowrap"
         >
           <Plus className="w-4 h-4" aria-hidden="true" />
           プロジェクト作成
@@ -435,7 +435,7 @@ export function ProjectsView({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search
-            className="w-3.5 h-3.5 text-[#64748b] absolute left-3 top-1/2 -translate-y-1/2"
+            className="w-3.5 h-3.5 text-subtle absolute left-3 top-1/2 -translate-y-1/2"
             aria-hidden="true"
           />
           <input
@@ -444,10 +444,10 @@ export function ProjectsView({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="プロジェクト名やリポジトリで検索..."
-            className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#ffffff] pl-8 pr-3 py-1.5 text-xs text-[#111827] placeholder:text-[#94a3b8] focus:border-[#0f766e] focus:outline-none"
+            className="w-full rounded-[3px] border border-line-strong bg-surface pl-8 pr-3 py-1.5 text-xs text-ink placeholder:text-faint focus:border-accent focus:outline-none"
           />
         </div>
-        <div className="flex items-center gap-1 p-1 rounded-[3px] border border-[#dfe3ea] bg-[#ffffff]">
+        <div className="flex items-center gap-1 p-1 rounded-[3px] border border-line bg-surface">
           {(
             [
               { id: 'all', label: 'すべて' },
@@ -462,8 +462,8 @@ export function ProjectsView({
               onClick={() => setStatusFilter(tab.id)}
               className={`px-2.5 py-1 rounded-[2px] text-xs font-medium whitespace-nowrap transition-colors ${
                 statusFilter === tab.id
-                  ? 'bg-[#f0fdfa] text-[#0f766e] border border-[#99f6e4]'
-                  : 'text-[#5b6472] hover:text-[#111827] border border-transparent'
+                  ? 'bg-teal-50 text-accent border border-teal-200'
+                  : 'text-muted hover:text-ink border border-transparent'
               }`}
             >
               {tab.label}
@@ -473,25 +473,25 @@ export function ProjectsView({
       </div>
 
       {loading ? (
-        <div className="rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] p-8 text-center text-xs text-[#64748b]">
+        <div className="rounded-[3px] border border-line bg-surface p-8 text-center text-xs text-subtle">
           読み込み中...
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] p-12 text-center">
-          <FolderGit2 className="w-8 h-8 text-[#94a3b8] mx-auto mb-3" aria-hidden="true" />
-          <p className="text-sm font-medium text-[#111827]">
+        <div className="rounded-[3px] border border-line bg-surface p-12 text-center">
+          <FolderGit2 className="w-8 h-8 text-faint mx-auto mb-3" aria-hidden="true" />
+          <p className="text-sm font-medium text-ink">
             {projects.length === 0
               ? 'プロジェクトがまだ登録されていません'
               : '条件に一致するプロジェクトが見つかりません'}
           </p>
-          <p className="text-xs text-[#64748b] mt-1">
+          <p className="text-xs text-subtle mt-1">
             最初のプロジェクトを作成してタスクやエージェント実行を管理しましょう。
           </p>
           {projects.length === 0 && (
             <button
               type="button"
               onClick={openCreateModal}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-[3px] bg-[#0f766e] hover:bg-[#0d645d] px-3.5 py-2 text-xs font-semibold text-[#ffffff]"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-[3px] bg-accent hover:bg-accent-hover px-3.5 py-2 text-xs font-semibold text-white"
             >
               <Plus className="w-4 h-4" aria-hidden="true" />
               最初のプロジェクトを作成
@@ -499,11 +499,11 @@ export function ProjectsView({
           )}
         </div>
       ) : (
-        <div className="rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] overflow-hidden">
+        <div className="rounded-[3px] border border-line bg-surface overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[#dfe3ea] bg-[#f8f9fb] text-[11px] text-[#5b6472]">
+                <tr className="border-b border-line bg-elevated text-[11px] text-muted">
                   <th className="py-2.5 px-4 font-medium">プロジェクト名</th>
                   <th className="py-2.5 px-4 font-medium">リポジトリ</th>
                   <th className="py-2.5 px-4 font-medium">ブランチ</th>
@@ -512,31 +512,31 @@ export function ProjectsView({
                   <th className="py-2.5 px-4 font-medium text-right">操作</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#eef0f4] text-xs">
+              <tbody className="divide-y divide-sunken text-xs">
                 {filtered.map((p) => (
-                  <tr key={p.id} className="hover:bg-[#f8fafc] transition-colors">
+                  <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3 px-4 max-w-[260px]">
                       <button
                         type="button"
                         onClick={() => onSelectProject(p.id)}
-                        className="font-medium text-[#111827] hover:text-[#0f766e] text-left block truncate max-w-full"
+                        className="font-medium text-ink hover:text-accent text-left block truncate max-w-full"
                       >
                         {p.name}
                       </button>
                       {p.description && (
-                        <p className="text-[11px] text-[#64748b] truncate mt-0.5">{p.description}</p>
+                        <p className="text-[11px] text-subtle truncate mt-0.5">{p.description}</p>
                       )}
                     </td>
-                    <td className="py-3 px-4 font-mono text-[#5b6472] max-w-[220px] truncate">
+                    <td className="py-3 px-4 font-mono text-muted max-w-[220px] truncate">
                       {p.repositoryUrl || '—'}
                     </td>
-                    <td className="py-3 px-4 font-mono text-[#374151] whitespace-nowrap">
+                    <td className="py-3 px-4 font-mono text-ink-soft whitespace-nowrap">
                       {p.defaultBranch}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       <ProjectStatusTag status={p.status} />
                     </td>
-                    <td className="py-3 px-4 text-[#5b6472] font-mono tabular-nums whitespace-nowrap">
+                    <td className="py-3 px-4 text-muted font-mono tabular-nums whitespace-nowrap">
                       {formatDateTime(p.updatedAt)}
                     </td>
                     <td className="py-3 px-4 text-right whitespace-nowrap">
@@ -545,7 +545,7 @@ export function ProjectsView({
                           type="button"
                           onClick={() => openEditModal(p)}
                           aria-label={`${p.name} を編集`}
-                          className="p-1.5 rounded-[2px] text-[#5b6472] hover:text-[#111827] hover:bg-[#eef0f4]"
+                          className="p-1.5 rounded-[2px] text-muted hover:text-ink hover:bg-sunken"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
@@ -553,7 +553,7 @@ export function ProjectsView({
                           type="button"
                           onClick={() => handleDelete(p)}
                           aria-label={`${p.name} を削除`}
-                          className="p-1.5 rounded-[2px] text-[#5b6472] hover:text-red-700 hover:bg-red-50"
+                          className="p-1.5 rounded-[2px] text-muted hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -607,18 +607,18 @@ function ProjectModal(props: {
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 bg-[#0f172a]/40 backdrop-blur-[1px] flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-[1px] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="project-modal-title"
     >
-      <div className="w-full max-w-lg rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] p-6 shadow-lg">
-        <h2 id="project-modal-title" className="font-display text-base font-semibold text-[#111827]">
+      <div className="w-full max-w-lg rounded-[3px] border border-line bg-surface p-6 shadow-lg">
+        <h2 id="project-modal-title" className="font-display text-base font-semibold text-ink">
           {props.editing ? 'プロジェクトを編集' : '新規プロジェクト作成'}
         </h2>
         <form onSubmit={props.onSubmit} className="mt-4 space-y-4">
           <div>
-            <label htmlFor="proj-name" className="block text-xs text-[#5b6472] mb-1">
+            <label htmlFor="proj-name" className="block text-xs text-muted mb-1">
               プロジェクト名 *
             </label>
             <input
@@ -627,11 +627,11 @@ function ProjectModal(props: {
               value={props.name}
               onChange={(e) => props.setName(e.target.value)}
               placeholder="例: Billing Core API"
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#f8f9fb] px-3 py-2 text-sm text-[#111827] focus:border-[#0f766e] focus:bg-[#ffffff] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-elevated px-3 py-2 text-sm text-ink focus:border-accent focus:bg-surface focus:outline-none"
             />
           </div>
           <div>
-            <label htmlFor="proj-desc" className="block text-xs text-[#5b6472] mb-1">
+            <label htmlFor="proj-desc" className="block text-xs text-muted mb-1">
               説明
             </label>
             <textarea
@@ -640,12 +640,12 @@ function ProjectModal(props: {
               value={props.description}
               onChange={(e) => props.setDescription(e.target.value)}
               placeholder="マイクロサービスの概要や目的..."
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#f8f9fb] px-3 py-2 text-sm text-[#111827] focus:border-[#0f766e] focus:bg-[#ffffff] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-elevated px-3 py-2 text-sm text-ink focus:border-accent focus:bg-surface focus:outline-none"
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
-              <label htmlFor="proj-repo" className="block text-xs text-[#5b6472] mb-1">
+              <label htmlFor="proj-repo" className="block text-xs text-muted mb-1">
                 GitHub リポジトリ URL
               </label>
               <input
@@ -653,11 +653,11 @@ function ProjectModal(props: {
                 value={props.repositoryUrl}
                 onChange={(e) => props.setRepositoryUrl(e.target.value)}
                 placeholder="https://github.com/org/repo"
-                className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#f8f9fb] px-3 py-2 text-sm text-[#111827] font-mono focus:border-[#0f766e] focus:bg-[#ffffff] focus:outline-none"
+                className="w-full rounded-[3px] border border-line-strong bg-elevated px-3 py-2 text-sm text-ink font-mono focus:border-accent focus:bg-surface focus:outline-none"
               />
             </div>
             <div>
-              <label htmlFor="proj-branch" className="block text-xs text-[#5b6472] mb-1">
+              <label htmlFor="proj-branch" className="block text-xs text-muted mb-1">
                 デフォルトブランチ *
               </label>
               <input
@@ -665,19 +665,19 @@ function ProjectModal(props: {
                 required
                 value={props.defaultBranch}
                 onChange={(e) => props.setDefaultBranch(e.target.value)}
-                className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#f8f9fb] px-3 py-2 text-sm text-[#111827] font-mono focus:border-[#0f766e] focus:bg-[#ffffff] focus:outline-none"
+                className="w-full rounded-[3px] border border-line-strong bg-elevated px-3 py-2 text-sm text-ink font-mono focus:border-accent focus:bg-surface focus:outline-none"
               />
             </div>
           </div>
           <div>
-            <label htmlFor="proj-status" className="block text-xs text-[#5b6472] mb-1">
+            <label htmlFor="proj-status" className="block text-xs text-muted mb-1">
               ステータス
             </label>
             <select
               id="proj-status"
               value={props.status}
               onChange={(e) => props.setStatus(e.target.value as ProjectStatus)}
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#f8f9fb] px-3 py-2 text-sm text-[#111827] focus:border-[#0f766e] focus:bg-[#ffffff] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-elevated px-3 py-2 text-sm text-ink focus:border-accent focus:bg-surface focus:outline-none"
             >
               <option value="active">稼働中 (Active)</option>
               <option value="paused">一時停止 (Paused)</option>
@@ -688,14 +688,14 @@ function ProjectModal(props: {
             <button
               type="button"
               onClick={props.onClose}
-              className="rounded-[3px] border border-[#d2d7e2] bg-[#ffffff] px-3.5 py-2 text-xs text-[#374151] hover:bg-[#f8f9fb]"
+              className="rounded-[3px] border border-line-strong bg-surface px-3.5 py-2 text-xs text-ink-soft hover:bg-elevated"
             >
               キャンセル
             </button>
             <button
               type="submit"
               disabled={props.saving}
-              className="rounded-[3px] bg-[#0f766e] hover:bg-[#0d645d] disabled:opacity-50 px-4 py-2 text-xs font-semibold text-[#ffffff]"
+              className="rounded-[3px] bg-accent hover:bg-accent-hover disabled:opacity-50 px-4 py-2 text-xs font-semibold text-white"
             >
               {props.editing ? '更新を保存' : '作成する'}
             </button>

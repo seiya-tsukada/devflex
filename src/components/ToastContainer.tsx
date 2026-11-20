@@ -7,6 +7,12 @@ export interface ToastMessage {
   detail?: string;
 }
 
+const TOAST_STYLES = {
+  success: { icon: CheckCircle2, border: 'border-emerald-300', iconColor: 'text-emerald-600' },
+  error: { icon: AlertCircle, border: 'border-red-300', iconColor: 'text-red-600' },
+  info: { icon: Info, border: 'border-teal-200', iconColor: 'text-accent' },
+} as const satisfies Record<ToastMessage['type'], object>;
+
 export function ToastContainer({
   toasts,
   onDismiss,
@@ -22,43 +28,26 @@ export function ToastContainer({
       aria-live="polite"
     >
       {toasts.map((toast) => {
-        const Icon =
-          toast.type === 'success'
-            ? CheckCircle2
-            : toast.type === 'error'
-              ? AlertCircle
-              : Info;
-        const borderClass =
-          toast.type === 'success'
-            ? 'border-emerald-300'
-            : toast.type === 'error'
-              ? 'border-red-300'
-              : 'border-[#99f6e4]';
-        const iconColor =
-          toast.type === 'success'
-            ? 'text-emerald-600'
-            : toast.type === 'error'
-              ? 'text-red-600'
-              : 'text-[#0f766e]';
+        const { icon: Icon, border, iconColor } = TOAST_STYLES[toast.type];
 
         return (
           <div
             key={toast.id}
             role="status"
-            className={`pointer-events-auto flex items-start gap-3 rounded-[3px] border ${borderClass} bg-[#ffffff]/95 backdrop-blur px-3.5 py-3 shadow-lg`}
+            className={`pointer-events-auto flex items-start gap-3 rounded-[3px] border ${border} bg-surface/95 backdrop-blur px-3.5 py-3 shadow-lg`}
           >
             <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${iconColor}`} aria-hidden="true" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[#111827]">{toast.title}</p>
+              <p className="text-sm font-medium text-ink">{toast.title}</p>
               {toast.detail && (
-                <p className="text-xs text-[#5b6472] mt-0.5 break-words">{toast.detail}</p>
+                <p className="text-xs text-muted mt-0.5 break-words">{toast.detail}</p>
               )}
             </div>
             <button
               type="button"
               onClick={() => onDismiss(toast.id)}
               aria-label="通知を閉じる"
-              className="text-[#64748b] hover:text-[#111827] p-0.5 rounded-[2px]"
+              className="text-subtle hover:text-ink p-0.5 rounded-[2px]"
             >
               <X className="w-3.5 h-3.5" />
             </button>
