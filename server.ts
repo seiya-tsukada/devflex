@@ -1,21 +1,14 @@
+// Local development / self-hosted server. On Vercel, server/vercel.ts is used instead.
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import express from 'express';
-import { createApiRouter } from './server/routes/api.ts';
+import { createApp } from './server/app.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? 'localhost';
 const isProd = process.env.NODE_ENV === 'production';
 
-const app = express();
-app.use(express.json({ limit: '1mb' }));
-// Express 5 leaves req.body undefined when no JSON body was sent.
-app.use((req, _res, next) => {
-  req.body ??= {};
-  next();
-});
-
-app.use('/api', createApiRouter());
+const app = createApp();
 
 if (isProd) {
   const distDir = path.resolve(import.meta.dirname, 'dist');

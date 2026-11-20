@@ -9,11 +9,12 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env server.ts",
     "build": "vite build",
+    "build:vercel": "vite build && node scripts/build-vercel.ts",
     "start": "NODE_ENV=production node --env-file-if-exists=.env server.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "node --test 'src/**/*.test.ts'",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist .vercel/output"
   },
   "dependencies": {
     "express": "^5.1.0",
