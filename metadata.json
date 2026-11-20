@@ -1,0 +1,6 @@
+{
+  "name": "Mini Software Factory",
+  "description": "複数のソフトウェアプロジェクトとAIコーディングエージェントを一元管理するマルチエージェント開発コントロールプレーン",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
