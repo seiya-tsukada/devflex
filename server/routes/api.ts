@@ -23,13 +23,27 @@ import {
   validateProjectPayload,
   validateTaskPayload,
 } from '../../src/shared/logic.ts';
-import { maskSecret, storage } from '../storage.ts';
-import { resolveAgentAdapter } from '../services/agentAdapters.ts';
+import {
+  createSession,
+  findOrCreateUser,
+  findSession,
+  generateId,
+  getDemoUser,
+  loadWorkspace,
+  logActivity,
+  maskSecret,
+  removeSession,
+  saveWorkspace,
+  storageMode,
+  type Workspace,
+} from '../storage.ts';
+import { advanceSimulatedExecutions, resolveAgentAdapter } from '../services/agentAdapters.ts';
 import { githubService } from '../services/githubService.ts';
 
 interface AuthedRequest extends Request {
   user?: UserProfile;
   authToken?: string;
+  ws?: Workspace;
 }
 
 function getTokenFromHeader(req: Request): string | null {
@@ -38,19 +52,44 @@ function getTokenFromHeader(req: Request): string | null {
   return authHeader.slice(7).trim() || null;
 }
 
-function requireAuth(req: AuthedRequest, res: Response, next: NextFunction): void {
+/**
+ * Loads the caller's workspace for the duration of the request and persists it
+ * (only if it changed) right before the JSON response is sent. Writing before the
+ * response matters on serverless platforms, where work after the response may never run.
+ */
+async function requireAuth(req: AuthedRequest, res: Response, next: NextFunction): Promise<void> {
   const token = getTokenFromHeader(req);
   if (!token) {
     res.status(401).json({ error: '認証が必要です。サインインしてください。' });
     return;
   }
-  const user = storage.findUserBySessionToken(token);
-  if (!user) {
+  const session = await findSession(token);
+  const ws = session ? await loadWorkspace(session.userId) : null;
+  if (!ws) {
     res.status(401).json({ error: 'セッションの有効期限が切れています。再度サインインしてください。' });
     return;
   }
-  req.user = user;
+
+  const snapshot = JSON.stringify(ws);
+  advanceSimulatedExecutions(ws);
+
+  const sendJson = res.json.bind(res);
+  res.json = (body?: unknown) => {
+    const pending = JSON.stringify(ws) === snapshot ? Promise.resolve() : saveWorkspace(ws);
+    pending.then(
+      () => sendJson(body),
+      (error: unknown) => {
+        console.error('[storage] Failed to save workspace', error);
+        res.status(500);
+        sendJson({ error: 'データの保存に失敗しました。時間をおいて再度お試しください。' });
+      },
+    );
+    return res;
+  };
+
+  req.user = ws.user;
   req.authToken = token;
+  req.ws = ws;
   next();
 }
 
@@ -58,11 +97,11 @@ export function createApiRouter(): express.Router {
   const router = express.Router();
 
   router.get('/health', (_req, res) => {
-    res.json({ ok: true, mode: 'server-persistence', timestamp: new Date().toISOString() });
+    res.json({ ok: true, mode: 'server-persistence', storage: storageMode(), timestamp: new Date().toISOString() });
   });
 
   // --- Auth Routes ---
-  router.post('/auth/login', (req, res) => {
+  router.post('/auth/login', async (req, res) => {
     const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
     const displayName =
       typeof req.body?.displayName === 'string' ? req.body.displayName.trim() : '';
@@ -70,20 +109,20 @@ export function createApiRouter(): express.Router {
       res.status(400).json({ error: '有効なメールアドレスを入力してください。' });
       return;
     }
-    const user = storage.findOrCreateUser(email, displayName);
-    const session = storage.createSession(user.id);
+    const user = await findOrCreateUser(email, displayName);
+    const session = await createSession(user.id);
     res.json({ token: session.token, user });
   });
 
-  router.post('/auth/demo', (_req, res) => {
-    const user = storage.getDemoUser();
-    const session = storage.createSession(user.id);
+  router.post('/auth/demo', async (_req, res) => {
+    const user = await getDemoUser();
+    const session = await createSession(user.id);
     res.json({ token: session.token, user });
   });
 
-  router.post('/auth/logout', requireAuth, (req: AuthedRequest, res) => {
+  router.post('/auth/logout', requireAuth, async (req: AuthedRequest, res) => {
     if (req.authToken) {
-      storage.removeSession(req.authToken);
+      await removeSession(req.authToken);
     }
     res.json({ ok: true });
   });
@@ -93,18 +132,15 @@ export function createApiRouter(): express.Router {
   });
 
   router.post('/auth/onboarding/complete', requireAuth, (req: AuthedRequest, res) => {
-    const user = storage.getDb().users.find((u) => u.id === req.user!.id);
-    if (user) {
-      user.onboardingCompleted = true;
-      storage.save();
-    }
+    const user = req.ws!.user;
+    user.onboardingCompleted = true;
     res.json({ user });
   });
 
   // --- Dashboard ---
   router.get('/dashboard', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const projects = db.projects.filter((p) => p.userId === userId);
     const agents = db.agents.filter((a) => a.userId === userId);
     const tasks = db.tasks.filter((t) => t.userId === userId);
@@ -174,9 +210,8 @@ export function createApiRouter(): express.Router {
   // --- Projects ---
   router.get('/projects', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const projects = storage
-      .getDb()
-      .projects.filter((p) => p.userId === userId)
+    const projects = req.ws!.projects
+      .filter((p) => p.userId === userId)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     res.json({ projects });
   });
@@ -204,7 +239,7 @@ export function createApiRouter(): express.Router {
 
     const now = new Date().toISOString();
     const project: Project = {
-      id: storage.generateId('proj'),
+      id: generateId('proj'),
       userId,
       name,
       description,
@@ -215,20 +250,18 @@ export function createApiRouter(): express.Router {
       updatedAt: now,
     };
 
-    storage.getDb().projects.push(project);
-    storage.logActivity({
-      userId,
+    req.ws!.projects.push(project);
+    logActivity(req.ws!, {
       projectId: project.id,
       eventType: 'project_created',
       description: `プロジェクト「${project.name}」を作成しました`,
     });
-    storage.save();
     res.status(201).json({ project });
   });
 
   router.get('/projects/:id', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const project = db.projects.find((p) => p.id === req.params.id && p.userId === userId);
     if (!project) {
       res.status(404).json({ error: 'プロジェクトが見つかりません。' });
@@ -257,7 +290,7 @@ export function createApiRouter(): express.Router {
 
   router.patch('/projects/:id', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const project = db.projects.find((p) => p.id === req.params.id && p.userId === userId);
     if (!project) {
       res.status(404).json({ error: 'プロジェクトが見つかりません。' });
@@ -299,19 +332,17 @@ export function createApiRouter(): express.Router {
     project.status = nextStatus;
     project.updatedAt = new Date().toISOString();
 
-    storage.logActivity({
-      userId,
+    logActivity(req.ws!, {
       projectId: project.id,
       eventType: 'project_updated',
       description: `プロジェクト「${project.name}」の設定を更新しました`,
     });
-    storage.save();
     res.json({ project });
   });
 
   router.delete('/projects/:id', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const project = db.projects.find((p) => p.id === req.params.id && p.userId === userId);
     if (!project) {
       res.status(404).json({ error: 'プロジェクトが見つかりません。' });
@@ -323,13 +354,11 @@ export function createApiRouter(): express.Router {
     db.executions = db.executions.filter(
       (e) => !(e.projectId === project.id && e.userId === userId),
     );
-    storage.logActivity({
-      userId,
+    logActivity(req.ws!, {
       projectId: null,
       eventType: 'project_deleted',
       description: `プロジェクト「${project.name}」と関連タスクを削除しました`,
     });
-    storage.save();
     res.json({ ok: true });
   });
 
@@ -338,7 +367,7 @@ export function createApiRouter(): express.Router {
     const userId = req.user!.id;
     const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : '';
     const status = typeof req.query.status === 'string' ? req.query.status : '';
-    let tasks = storage.getDb().tasks.filter((t) => t.userId === userId);
+    let tasks = req.ws!.tasks.filter((t) => t.userId === userId);
     if (projectId) tasks = tasks.filter((t) => t.projectId === projectId);
     if (status) tasks = tasks.filter((t) => t.status === status);
     tasks.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -347,7 +376,7 @@ export function createApiRouter(): express.Router {
 
   router.post('/tasks', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const projectId = typeof req.body?.projectId === 'string' ? req.body.projectId.trim() : '';
     const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
     const description =
@@ -391,7 +420,7 @@ export function createApiRouter(): express.Router {
 
     const now = new Date().toISOString();
     const task: Task = {
-      id: storage.generateId('task'),
+      id: generateId('task'),
       userId,
       projectId,
       title,
@@ -406,8 +435,7 @@ export function createApiRouter(): express.Router {
     };
 
     db.tasks.push(task);
-    storage.logActivity({
-      userId,
+    logActivity(req.ws!, {
       projectId,
       taskId: task.id,
       agentId: assignedAgentId,
@@ -416,8 +444,7 @@ export function createApiRouter(): express.Router {
     });
     if (assignedAgentId) {
       const agent = db.agents.find((a) => a.id === assignedAgentId);
-      storage.logActivity({
-        userId,
+      logActivity(req.ws!, {
         projectId,
         taskId: task.id,
         agentId: assignedAgentId,
@@ -425,13 +452,12 @@ export function createApiRouter(): express.Router {
         description: `タスク「${task.title}」を ${agent?.name ?? 'エージェント'} に割り当てました`,
       });
     }
-    storage.save();
     res.status(201).json({ task });
   });
 
   router.get('/tasks/:id', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const task = db.tasks.find((t) => t.id === req.params.id && t.userId === userId);
     if (!task) {
       res.status(404).json({ error: 'タスクが見つかりません。' });
@@ -449,7 +475,7 @@ export function createApiRouter(): express.Router {
 
   router.patch('/tasks/:id', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const task = db.tasks.find((t) => t.id === req.params.id && t.userId === userId);
     if (!task) {
       res.status(404).json({ error: 'タスクが見つかりません。' });
@@ -491,8 +517,7 @@ export function createApiRouter(): express.Router {
         task.assignedAgentId = nextAgentId;
         if (nextAgentId) {
           const agent = db.agents.find((a) => a.id === nextAgentId);
-          storage.logActivity({
-            userId,
+          logActivity(db, {
             projectId: task.projectId,
             taskId: task.id,
             agentId: nextAgentId,
@@ -519,21 +544,19 @@ export function createApiRouter(): express.Router {
     task.title = nextTitle;
     task.updatedAt = new Date().toISOString();
 
-    storage.logActivity({
-      userId,
+    logActivity(req.ws!, {
       projectId: task.projectId,
       taskId: task.id,
       agentId: task.assignedAgentId,
       eventType: 'task_updated',
       description: `タスク「${task.title}」を更新しました（ステータス: ${task.status}）`,
     });
-    storage.save();
     res.json({ task });
   });
 
   router.post('/tasks/:id/pr', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const task = db.tasks.find((t) => t.id === req.params.id && t.userId === userId);
     if (!task) {
       res.status(404).json({ error: 'タスクが見つかりません。' });
@@ -568,21 +591,19 @@ export function createApiRouter(): express.Router {
     });
     task.updatedAt = new Date().toISOString();
 
-    storage.logActivity({
-      userId,
+    logActivity(req.ws!, {
       projectId: task.projectId,
       taskId: task.id,
       agentId: task.assignedAgentId,
       eventType: 'pr_linked',
       description: `Pull Request をタスク「${task.title}」に関連付けました: ${url}`,
     });
-    storage.save();
     res.json({ task });
   });
 
   router.delete('/tasks/:id', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const task = db.tasks.find((t) => t.id === req.params.id && t.userId === userId);
     if (!task) {
       res.status(404).json({ error: 'タスクが見つかりません。' });
@@ -592,14 +613,13 @@ export function createApiRouter(): express.Router {
     db.executions = db.executions.filter(
       (e) => !(e.taskId === task.id && e.userId === userId),
     );
-    storage.save();
     res.json({ ok: true });
   });
 
   // --- Agents ---
   router.get('/agents', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const agents = db.agents
       .filter((a) => a.userId === userId)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
@@ -645,8 +665,8 @@ export function createApiRouter(): express.Router {
     }
 
     const now = new Date().toISOString();
-    const id = storage.generateId('agent');
-    const secrets = storage.getUserSecrets(userId);
+    const id = generateId('agent');
+    const secrets = req.ws!.secrets;
     if (apiKey) {
       secrets.agentKeys[id] = apiKey;
     }
@@ -680,20 +700,18 @@ export function createApiRouter(): express.Router {
       updatedAt: now,
     };
 
-    storage.getDb().agents.push(agent);
-    storage.logActivity({
-      userId,
+    req.ws!.agents.push(agent);
+    logActivity(req.ws!, {
       agentId: agent.id,
       eventType: 'agent_created',
       description: `エージェント「${agent.name}」（${connectionType === 'mock' ? 'Mock Adapter' : '外部プロバイダー設定'}）を登録しました`,
     });
-    storage.save();
     res.status(201).json({ agent });
   });
 
   router.patch('/agents/:id', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const agent = db.agents.find((a) => a.id === req.params.id && a.userId === userId);
     if (!agent) {
       res.status(404).json({ error: 'エージェントが見つかりません。' });
@@ -731,7 +749,7 @@ export function createApiRouter(): express.Router {
       ? req.body.connectionType
       : agent.connectionType;
 
-    const secrets = storage.getUserSecrets(userId);
+    const secrets = req.ws!.secrets;
     if (typeof req.body?.apiKey === 'string' && req.body.apiKey.trim()) {
       const cleanKey = req.body.apiKey.trim();
       secrets.agentKeys[agent.id] = cleanKey;
@@ -763,26 +781,24 @@ export function createApiRouter(): express.Router {
 
     agent.updatedAt = new Date().toISOString();
 
-    storage.logActivity({
-      userId,
+    logActivity(req.ws!, {
       agentId: agent.id,
       eventType: 'agent_updated',
       description: `エージェント「${agent.name}」の設定を更新しました`,
     });
-    storage.save();
     res.json({ agent });
   });
 
   router.post('/agents/:id/test', requireAuth, async (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const agent = db.agents.find((a) => a.id === req.params.id && a.userId === userId);
     if (!agent) {
       res.status(404).json({ error: 'エージェントが見つかりません。' });
       return;
     }
 
-    const secrets = storage.getUserSecrets(userId);
+    const secrets = req.ws!.secrets;
     const hasSecret =
       Boolean(secrets.agentKeys[agent.id]) ||
       Boolean(agent.configuration.endpointUrl) ||
@@ -796,19 +812,17 @@ export function createApiRouter(): express.Router {
     agent.connectionStatus = result.status;
     agent.updatedAt = result.checkedAt;
 
-    storage.logActivity({
-      userId,
+    logActivity(req.ws!, {
       agentId: agent.id,
       eventType: 'agent_tested',
       description: `エージェント「${agent.name}」の接続テストを実施（結果: ${result.status}）`,
     });
-    storage.save();
     res.json({ result, agent });
   });
 
   router.delete('/agents/:id', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const agent = db.agents.find((a) => a.id === req.params.id && a.userId === userId);
     if (!agent) {
       res.status(404).json({ error: 'エージェントが見つかりません。' });
@@ -820,16 +834,15 @@ export function createApiRouter(): express.Router {
         task.assignedAgentId = null;
       }
     }
-    const secrets = storage.getUserSecrets(userId);
+    const secrets = req.ws!.secrets;
     delete secrets.agentKeys[agent.id];
-    storage.save();
     res.json({ ok: true });
   });
 
   // --- Executions ---
   router.get('/executions', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : '';
     const agentId = typeof req.query.agentId === 'string' ? req.query.agentId : '';
     const status = typeof req.query.status === 'string' ? req.query.status : '';
@@ -862,7 +875,7 @@ export function createApiRouter(): express.Router {
 
   router.get('/executions/:id', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const execution = db.executions.find(
       (e) => e.id === req.params.id && e.userId === userId,
     );
@@ -882,7 +895,7 @@ export function createApiRouter(): express.Router {
 
   router.post('/executions', requireAuth, async (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const projectId = typeof req.body?.projectId === 'string' ? req.body.projectId.trim() : '';
     const taskId = typeof req.body?.taskId === 'string' ? req.body.taskId.trim() : '';
     const agentId = typeof req.body?.agentId === 'string' ? req.body.agentId.trim() : '';
@@ -933,7 +946,7 @@ export function createApiRouter(): express.Router {
 
     const now = new Date().toISOString();
     const execution: Execution = {
-      id: storage.generateId('exec'),
+      id: generateId('exec'),
       userId,
       projectId: project.id,
       taskId: task.id,
@@ -947,7 +960,7 @@ export function createApiRouter(): express.Router {
       error: null,
       logs: [
         {
-          id: storage.generateId('log'),
+          id: generateId('log'),
           timestamp: now,
           level: 'info',
           phase: 'キュー登録',
@@ -975,32 +988,22 @@ export function createApiRouter(): express.Router {
     agent.lastActivityAt = now;
     agent.updatedAt = now;
 
-    storage.logActivity({
-      userId,
+    logActivity(req.ws!, {
       projectId: project.id,
       taskId: task.id,
       agentId: agent.id,
       eventType: 'execution_started',
       description: `${agent.name} でタスク「${task.title}」の${execution.isSimulated ? 'モック' : ''}実行を開始しました`,
     });
-    storage.save();
 
-    await adapter.startExecution({
-      executionId: execution.id,
-      userId,
-      agent,
-      taskTitle: task.title,
-      projectName: project.name,
-      repositoryUrl: project.repositoryUrl,
-      instructions,
-    });
+    await adapter.startExecution({ workspace: db, execution, agent });
 
     res.status(201).json({ execution });
   });
 
   router.post('/executions/:id/cancel', requireAuth, async (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const execution = db.executions.find(
       (e) => e.id === req.params.id && e.userId === userId,
     );
@@ -1014,7 +1017,7 @@ export function createApiRouter(): express.Router {
       return;
     }
     const adapter = resolveAgentAdapter(agent);
-    const cancelled = await adapter.cancel(execution.id, userId);
+    const cancelled = await adapter.cancel(db, execution.id);
     if (!cancelled) {
       res.status(400).json({ error: 'この実行はすでに終了しているかキャンセル非対応です。' });
       return;
@@ -1025,7 +1028,7 @@ export function createApiRouter(): express.Router {
   // --- Analytics & Activity ---
   router.get('/analytics', requireAuth, (req: AuthedRequest, res) => {
     const userId = req.user!.id;
-    const db = storage.getDb();
+    const db = req.ws!;
     const fromDate = typeof req.query.from === 'string' && req.query.from ? req.query.from : null;
     const toDate = typeof req.query.to === 'string' && req.query.to ? req.query.to : null;
     const projectId =
@@ -1059,7 +1062,7 @@ export function createApiRouter(): express.Router {
     const fromDate = typeof req.query.from === 'string' ? req.query.from : '';
     const toDate = typeof req.query.to === 'string' ? req.query.to : '';
 
-    let logs = storage.getDb().activityLogs.filter((l) => l.userId === userId);
+    let logs = req.ws!.activityLogs.filter((l) => l.userId === userId);
     if (projectId) logs = logs.filter((l) => l.projectId === projectId);
     if (agentId) logs = logs.filter((l) => l.agentId === agentId);
     if (eventType) logs = logs.filter((l) => l.eventType === eventType);
@@ -1071,16 +1074,15 @@ export function createApiRouter(): express.Router {
 
   // --- Settings ---
   router.get('/settings', requireAuth, (req: AuthedRequest, res) => {
-    const settings = storage.getUserSettings(req.user!.id);
+    const settings = req.ws!.settings;
     res.json({ settings, user: req.user });
   });
 
   router.patch('/settings', requireAuth, (req: AuthedRequest, res) => {
-    const userId = req.user!.id;
-    const db = storage.getDb();
-    const user = db.users.find((u) => u.id === userId)!;
-    const settings = storage.getUserSettings(userId);
-    const secrets = storage.getUserSecrets(userId);
+    const db = req.ws!;
+    const user = db.user;
+    const settings = db.settings;
+    const secrets = db.secrets;
 
     if (typeof req.body?.displayName === 'string' && req.body.displayName.trim()) {
       user.displayName = req.body.displayName.trim().slice(0, 80);
@@ -1170,12 +1172,10 @@ export function createApiRouter(): express.Router {
     }
 
     settings.updatedAt = new Date().toISOString();
-    storage.logActivity({
-      userId,
+    logActivity(req.ws!, {
       eventType: 'settings_updated',
       description: 'ワークスペース設定・連携設定を更新しました',
     });
-    storage.save();
     res.json({ settings, user });
   });
 

@@ -148,6 +148,16 @@ export interface Execution {
   estimatedCostUsd: number | null;
   costReported: boolean;
   pullRequestUrl: string | null;
+  /**
+   * Mock-run schedule. Progress is derived from elapsed time whenever the
+   * execution is read, so no long-lived timers are needed (serverless-safe).
+   */
+  simulation?: {
+    latencyMs: number;
+    shouldFail: boolean;
+    /** Number of milestones already applied (0-4). */
+    stage: number;
+  };
   createdAt: string;
   updatedAt: string;
 }

@@ -9,8 +9,8 @@
 | 領域 | 内容 |
 | --- | --- |
 | フロントエンド | React 19 + Vite 8 + Tailwind CSS v4、lucide-react |
-| バックエンド | Express 5（Node.js のネイティブ TypeScript 実行） |
-| 永続化 | `.data/factory-db.json`（ローカル JSON ストア、初回起動時にデモデータを投入） |
+| バックエンド | Express 5（ローカルは Node.js のネイティブ TypeScript 実行、Vercel では 1 つの関数にバンドル） |
+| 永続化 | ローカルは `.data/kv-store.json`、Vercel ではメモリ（デモデータは初回アクセス時に投入） |
 | テスト | `node:test` |
 
 ## 必要環境
@@ -41,9 +41,20 @@ http://localhost:3000 を開きます。`?autostart=1` を付けると、デモ�
 | --- | --- |
 | `npm run dev` | 開発サーバー（Vite ミドルウェア + HMR）。サーバー側コードの変更は手動で再起動 |
 | `npm run build` | クライアントを `dist/` にビルド |
+| `npm run build:vercel` | Vercel 用の出力（`.vercel/output`）を生成。Vercel のビルドコマンドとして使用 |
 | `npm start` | 本番モードで起動（事前に `npm run build`） |
 | `npm run typecheck` | TypeScript の型チェック |
 | `npm test` | ユニットテスト（状態遷移・バリデーション・集計ロジック） |
+
+## Vercel へのデプロイ
+
+設定は [vercel.json](vercel.json) にあります。リポジトリをインポートすれば、`npm run build:vercel` が次の内容を `.vercel/output` に出力します（Build Output API）。
+
+- `static/`：ビルドしたフロントエンド
+- `functions/api.func`：`/api/*` をすべて処理する 1 つの Node.js 関数（[server/vercel.ts](server/vercel.ts) をバンドルしたもの）
+- ルーティング：静的ファイル → `/api/*` は関数 → それ以外は `index.html`
+
+> **Vercel 上のデータはメモリにしか保存されません。** 関数インスタンスが入れ替わるとデータとログイン状態がリセットされます。詳しくは [docs/improvements.md](docs/improvements.md) を参照してください。
 
 ## 機能
 
@@ -104,6 +115,7 @@ http://localhost:3000 を開きます。`?autostart=1` を付けると、デモ�
 
 - **Mock Adapter**（`connectionType: mock`）
   - 実行を数秒かけてシミュレーションします：キュー → 実行開始 → 設計・計画 → 変更・テスト → 完了。
+  - タイマーは使わず、API が呼ばれるたびに経過時間から状態を進めます（サーバーレス対応）。
   - 完了すると、ダミーの出力、トークン数、推定コスト、シミュレーション PR の URL を記録します。タスクのステータスも連動して更新されます。
   - エージェントに「失敗をシミュレート」を設定すると、必ず `failed` で終わります。
   - 外部への通信は一切しません。
@@ -152,11 +164,16 @@ API キーや GitHub トークンはサーバー側のストア（`secrets`）�
 ## ディレクトリ構成
 
 ```
-server.ts                       エントリーポイント（Express + Vite ミドルウェア）
+server.ts                       ローカル用エントリーポイント（Express + Vite ミドルウェア）
+server/app.ts                   Express アプリ本体（ローカルと Vercel で共通）
+server/vercel.ts                Vercel Function のエントリーポイント
 server/routes/api.ts            REST API
 server/services/agentAdapters.ts エージェントアダプター（Mock / External）
 server/services/githubService.ts Pull Request URL の検証と参照の生成
-server/storage.ts               JSON ストア、セッション、シークレット、シードデータ
+server/storage.ts               ワークスペース、セッション、シークレット、シードデータ
+server/store.ts                 保存先の切り替え（ファイル / メモリ）
+scripts/build-vercel.ts         Vercel 用ビルド出力の生成
+docs/improvements.md            改善ポイント
 src/App.tsx                     アプリシェル（認証、ルーティング、ポーリング）
 src/components/                 各画面のコンポーネント
 src/hooks/                      カスタムフック
@@ -167,7 +184,10 @@ src/shared/                     クライアントとサーバーで共有する
 
 ## 今後の課題
 
-- 実プロバイダー（Claude Code / Codex / Devin）向けワーカーランタイムとの接続
-- GitHub API と連携した PR ステータスの自動同期
-- JSON ストアからデータベースへの移行
-- `server/routes/api.ts` をリソースごとに分割
+詳細と対応方針は [docs/improvements.md](docs/improvements.md) にまとめています。主なものは次のとおりです。
+
+- Vercel 上のデータがメモリにしか残らない（インスタンスの入れ替えやデプロイでリセット、複数インスタンスで不整合）
+- 同じユーザーの同時更新で後から保存した方が勝つ
+- パスワードなしのメールログインのため、なりすましができる
+- デモワークスペースを全訪問者で共有している
+- 実プロバイダー（Claude Code / Codex / Devin）向けワーカーランタイムとの接続、GitHub PR ステータスの自動同期

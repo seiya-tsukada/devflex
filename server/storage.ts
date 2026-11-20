@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import crypto from 'node:crypto';
 import type {
   ActivityEventType,
@@ -11,6 +9,7 @@ import type {
   UserProfile,
   UserSettings,
 } from '../src/shared/types.ts';
+import { kvStore } from './store.ts';
 
 export interface ServerUserSecrets {
   githubToken?: string;
@@ -28,20 +27,31 @@ export interface SessionRecord {
   expiresAt: string;
 }
 
-export interface FactoryDatabase {
-  users: UserProfile[];
-  sessions: SessionRecord[];
+/**
+ * Everything that belongs to one user, stored as a single document.
+ * Each request loads only the caller's workspace, so concurrent users never
+ * overwrite each other's data.
+ */
+export interface Workspace {
+  user: UserProfile;
   projects: Project[];
   agents: Agent[];
   tasks: Task[];
   executions: Execution[];
   activityLogs: ActivityLog[];
-  settings: UserSettings[];
-  secrets: Record<string, ServerUserSecrets>;
+  settings: UserSettings;
+  secrets: ServerUserSecrets;
 }
 
-const DATA_DIR = path.resolve(process.cwd(), '.data');
-const DB_PATH = path.join(DATA_DIR, 'factory-db.json');
+export const DEMO_USER_ID = 'demo-user';
+const SESSION_TTL_SEC = 7 * 86400;
+const MAX_ACTIVITY_LOGS = 1000;
+
+const keys = {
+  workspace: (userId: string) => `msf:workspace:${userId}`,
+  email: (email: string) => `msf:email:${email}`,
+  session: (token: string) => `msf:session:${token}`,
+};
 
 export function maskSecret(secret?: string): string | undefined {
   if (!secret) return undefined;
@@ -77,10 +87,10 @@ export function createDefaultSettings(userId: string): UserSettings {
   };
 }
 
-function buildSeedDatabase(): FactoryDatabase {
+function buildDemoWorkspace(): Workspace {
   const now = Date.now();
   const iso = (offsetMs: number) => new Date(now + offsetMs).toISOString();
-  const demoUserId = 'demo-user';
+  const demoUserId = DEMO_USER_ID;
 
   const demoUser: UserProfile = {
     id: demoUserId,
@@ -457,194 +467,145 @@ function buildSeedDatabase(): FactoryDatabase {
   ];
 
   return {
-    users: [demoUser],
-    sessions: [],
+    user: demoUser,
     projects,
     agents,
     tasks,
     executions,
     activityLogs,
-    settings: [createDefaultSettings(demoUserId)],
-    secrets: {
-      [demoUserId]: { agentKeys: {} },
-    },
+    settings: createDefaultSettings(demoUserId),
+    secrets: { agentKeys: {} },
   };
 }
 
-class StorageService {
-  private db: FactoryDatabase;
+export function generateId(prefix: string): string {
+  return `${prefix}_${crypto.randomBytes(6).toString('hex')}`;
+}
 
-  constructor() {
-    this.db = this.load();
+export function storageMode(): string {
+  return kvStore.kind;
+}
+
+// --- Workspaces ---
+
+function normalizeWorkspace(ws: Workspace): Workspace {
+  return {
+    ...ws,
+    projects: ws.projects ?? [],
+    agents: ws.agents ?? [],
+    tasks: ws.tasks ?? [],
+    executions: ws.executions ?? [],
+    activityLogs: ws.activityLogs ?? [],
+    settings: ws.settings ?? createDefaultSettings(ws.user.id),
+    secrets: ws.secrets ?? { agentKeys: {} },
+  };
+}
+
+export async function loadWorkspace(userId: string): Promise<Workspace | null> {
+  const ws = await kvStore.get<Workspace>(keys.workspace(userId));
+  if (ws) return normalizeWorkspace(ws);
+  if (userId === DEMO_USER_ID) {
+    const seeded = buildDemoWorkspace();
+    await saveWorkspace(seeded);
+    return seeded;
   }
+  return null;
+}
 
-  private load(): FactoryDatabase {
-    try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
-      if (!fs.existsSync(DB_PATH)) {
-        const seed = buildSeedDatabase();
-        this.writeAtomic(seed);
-        return seed;
-      }
-      const raw = fs.readFileSync(DB_PATH, 'utf-8');
-      const parsed = JSON.parse(raw) as FactoryDatabase;
-      return {
-        users: parsed.users ?? [],
-        sessions: parsed.sessions ?? [],
-        projects: parsed.projects ?? [],
-        agents: parsed.agents ?? [],
-        tasks: parsed.tasks ?? [],
-        executions: parsed.executions ?? [],
-        activityLogs: parsed.activityLogs ?? [],
-        settings: parsed.settings ?? [],
-        secrets: parsed.secrets ?? {},
-      };
-    } catch {
-      const seed = buildSeedDatabase();
-      this.writeAtomic(seed);
-      return seed;
+export async function saveWorkspace(ws: Workspace): Promise<void> {
+  if (ws.activityLogs.length > MAX_ACTIVITY_LOGS) {
+    ws.activityLogs = ws.activityLogs.slice(0, MAX_ACTIVITY_LOGS);
+  }
+  await kvStore.set(keys.workspace(ws.user.id), ws);
+}
+
+// --- Users & sessions ---
+
+export async function findOrCreateUser(email: string, displayName?: string): Promise<UserProfile> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const name = displayName?.trim() ?? '';
+  const existingId = await kvStore.get<string>(keys.email(normalizedEmail));
+  const existing = existingId ? await loadWorkspace(existingId) : null;
+  if (existing) {
+    if (name && existing.user.displayName !== name) {
+      existing.user.displayName = name;
+      await saveWorkspace(existing);
     }
+    return existing.user;
   }
 
-  private writeAtomic(data: FactoryDatabase): void {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    const tmpPath = `${DB_PATH}.${crypto.randomUUID()}.tmp`;
-    fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
-    fs.renameSync(tmpPath, DB_PATH);
-  }
+  const user: UserProfile = {
+    id: generateId('user'),
+    email: normalizedEmail,
+    displayName: name || normalizedEmail.split('@')[0],
+    avatarColor: '#6366f1',
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  };
+  await saveWorkspace({
+    user,
+    projects: [],
+    agents: [],
+    tasks: [],
+    executions: [],
+    activityLogs: [],
+    settings: createDefaultSettings(user.id),
+    secrets: { agentKeys: {} },
+  });
+  await kvStore.set(keys.email(normalizedEmail), user.id);
+  return user;
+}
 
-  public save(): void {
-    this.writeAtomic(this.db);
-  }
+export async function getDemoUser(): Promise<UserProfile> {
+  const ws = await loadWorkspace(DEMO_USER_ID);
+  return ws!.user;
+}
 
-  public getDb(): FactoryDatabase {
-    return this.db;
-  }
+export async function createSession(userId: string): Promise<SessionRecord> {
+  const now = new Date();
+  const session: SessionRecord = {
+    token: crypto.randomBytes(24).toString('hex'),
+    userId,
+    createdAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + SESSION_TTL_SEC * 1000).toISOString(),
+  };
+  await kvStore.set(keys.session(session.token), session, { ttlSec: SESSION_TTL_SEC });
+  return session;
+}
 
-  public generateId(prefix: string): string {
-    return `${prefix}_${crypto.randomBytes(6).toString('hex')}`;
-  }
+export async function findSession(token: string): Promise<SessionRecord | null> {
+  const session = await kvStore.get<SessionRecord>(keys.session(token));
+  if (!session || new Date(session.expiresAt).getTime() <= Date.now()) return null;
+  return session;
+}
 
-  public createSession(userId: string): SessionRecord {
-    const token = crypto.randomBytes(24).toString('hex');
-    const now = new Date();
-    const expires = new Date(now.getTime() + 7 * 86400_000);
-    const session: SessionRecord = {
-      token,
-      userId,
-      createdAt: now.toISOString(),
-      expiresAt: expires.toISOString(),
-    };
-    this.db.sessions.push(session);
-    this.save();
-    return session;
-  }
+export async function removeSession(token: string): Promise<void> {
+  await kvStore.del(keys.session(token));
+}
 
-  public findUserBySessionToken(token: string): UserProfile | null {
-    const nowMs = Date.now();
-    const session = this.db.sessions.find(
-      (s) => s.token === token && new Date(s.expiresAt).getTime() > nowMs,
-    );
-    if (!session) return null;
-    return this.db.users.find((u) => u.id === session.userId) ?? null;
-  }
+// --- Activity log ---
 
-  public removeSession(token: string): void {
-    this.db.sessions = this.db.sessions.filter((s) => s.token !== token);
-    this.save();
-  }
-
-  public findOrCreateUser(email: string, displayName?: string): UserProfile {
-    const normalizedEmail = email.trim().toLowerCase();
-    const existing = this.db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
-    if (existing) {
-      if (displayName && displayName.trim() && existing.displayName !== displayName.trim()) {
-        existing.displayName = displayName.trim();
-        this.save();
-      }
-      return existing;
-    }
-
-    const user: UserProfile = {
-      id: this.generateId('user'),
-      email: normalizedEmail,
-      displayName: displayName?.trim() || normalizedEmail.split('@')[0],
-      avatarColor: '#6366f1',
-      onboardingCompleted: false,
-      createdAt: new Date().toISOString(),
-    };
-    this.db.users.push(user);
-    this.db.settings.push(createDefaultSettings(user.id));
-    this.db.secrets[user.id] = { agentKeys: {} };
-    this.save();
-    return user;
-  }
-
-  public getDemoUser(): UserProfile {
-    let demo = this.db.users.find((u) => u.id === 'demo-user');
-    if (!demo) {
-      const seed = buildSeedDatabase();
-      demo = seed.users[0];
-      this.db.users.push(demo);
-      this.db.projects.push(...seed.projects);
-      this.db.agents.push(...seed.agents);
-      this.db.tasks.push(...seed.tasks);
-      this.db.executions.push(...seed.executions);
-      this.db.activityLogs.push(...seed.activityLogs);
-      this.db.settings.push(...seed.settings);
-      this.db.secrets['demo-user'] = { agentKeys: {} };
-      this.save();
-    }
-    return demo;
-  }
-
-  public getUserSettings(userId: string): UserSettings {
-    let settings = this.db.settings.find((s) => s.userId === userId);
-    if (!settings) {
-      settings = createDefaultSettings(userId);
-      this.db.settings.push(settings);
-      this.save();
-    }
-    return settings;
-  }
-
-  public getUserSecrets(userId: string): ServerUserSecrets {
-    if (!this.db.secrets[userId]) {
-      this.db.secrets[userId] = { agentKeys: {} };
-      this.save();
-    }
-    return this.db.secrets[userId];
-  }
-
-  public logActivity(params: {
-    userId: string;
+export function logActivity(
+  ws: Workspace,
+  params: {
     projectId?: string | null;
     taskId?: string | null;
     agentId?: string | null;
     eventType: ActivityEventType;
     description: string;
-  }): ActivityLog {
-    const entry: ActivityLog = {
-      id: this.generateId('act'),
-      userId: params.userId,
-      projectId: params.projectId ?? null,
-      taskId: params.taskId ?? null,
-      agentId: params.agentId ?? null,
-      eventType: params.eventType,
-      description: params.description,
-      createdAt: new Date().toISOString(),
-    };
-    this.db.activityLogs.unshift(entry);
-    if (this.db.activityLogs.length > 1000) {
-      this.db.activityLogs = this.db.activityLogs.slice(0, 1000);
-    }
-    this.save();
-    return entry;
-  }
+    createdAt?: string;
+  },
+): ActivityLog {
+  const entry: ActivityLog = {
+    id: generateId('act'),
+    userId: ws.user.id,
+    projectId: params.projectId ?? null,
+    taskId: params.taskId ?? null,
+    agentId: params.agentId ?? null,
+    eventType: params.eventType,
+    description: params.description,
+    createdAt: params.createdAt ?? new Date().toISOString(),
+  };
+  ws.activityLogs.unshift(entry);
+  return entry;
 }
-
-export const storage = new StorageService();
