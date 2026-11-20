@@ -1,17 +1,44 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { api, getStoredToken, setStoredToken } from './lib/api.ts';
 import type { UserProfile } from './shared/types.ts';
-import { AgentsView } from './components/AgentsView.tsx';
-import { AnalyticsView } from './components/AnalyticsView.tsx';
 import { AuthScreen } from './components/AuthScreen.tsx';
-import { DashboardView } from './components/DashboardView.tsx';
-import { ExecutionsView } from './components/ExecutionsView.tsx';
-import { OnboardingWizard } from './components/OnboardingWizard.tsx';
-import { ProjectsView } from './components/ProjectsView.tsx';
-import { SettingsView } from './components/SettingsView.tsx';
 import { NAV_ITEMS, Sidebar, type NavRoute } from './components/Sidebar.tsx';
-import { TasksView } from './components/TasksView.tsx';
-import { ToastContainer, type ToastMessage } from './components/ToastContainer.tsx';
+import { ToastContainer } from './components/ToastContainer.tsx';
+import { useToasts } from './hooks/useToasts.ts';
+
+// Route-level code splitting: each view is loaded on first visit.
+const DashboardView = lazy(() =>
+  import('./components/DashboardView.tsx').then((m) => ({ default: m.DashboardView })),
+);
+const ProjectsView = lazy(() =>
+  import('./components/ProjectsView.tsx').then((m) => ({ default: m.ProjectsView })),
+);
+const TasksView = lazy(() =>
+  import('./components/TasksView.tsx').then((m) => ({ default: m.TasksView })),
+);
+const AgentsView = lazy(() =>
+  import('./components/AgentsView.tsx').then((m) => ({ default: m.AgentsView })),
+);
+const ExecutionsView = lazy(() =>
+  import('./components/ExecutionsView.tsx').then((m) => ({ default: m.ExecutionsView })),
+);
+const AnalyticsView = lazy(() =>
+  import('./components/AnalyticsView.tsx').then((m) => ({ default: m.AnalyticsView })),
+);
+const SettingsView = lazy(() =>
+  import('./components/SettingsView.tsx').then((m) => ({ default: m.SettingsView })),
+);
+const OnboardingWizard = lazy(() =>
+  import('./components/OnboardingWizard.tsx').then((m) => ({ default: m.OnboardingWizard })),
+);
+
+function LoadingScreen({ label }: { label: string }) {
+  return (
+    <div className="min-h-screen bg-canvas text-muted flex items-center justify-center text-sm font-mono">
+      {label}
+    </div>
+  );
+}
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -23,52 +50,40 @@ export default function App() {
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
   const [executionAgentFilter, setExecutionAgentFilter] = useState<string>('');
   const [runningCount, setRunningCount] = useState(0);
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
-  const notify = useCallback(
-    (type: ToastMessage['type'], title: string, detail?: string) => {
-      const id = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-      setToasts((prev) => [...prev, { id, type, title, detail }]);
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, 4500);
-    },
-    [],
-  );
-
-  const dismissToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  const { toasts, notify, dismiss: dismissToast } = useToasts();
 
   useEffect(() => {
-    const boot = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const autostart = params.get('autostart') === '1';
-      const existingToken = getStoredToken();
+    let cancelled = false;
 
-      if (existingToken) {
+    const resolveUser = async (): Promise<UserProfile | null> => {
+      if (getStoredToken()) {
         try {
-          const res = await api.me();
-          setUser(res.user);
-          setBooting(false);
-          return;
+          return (await api.me()).user;
         } catch {
           setStoredToken(null);
         }
       }
-
-      if (autostart) {
+      if (new URLSearchParams(window.location.search).get('autostart') === '1') {
         try {
-          const res = await api.loginDemo();
-          setStoredToken(res.token);
-          setUser(res.user);
+          const { token, user } = await api.loginDemo();
+          setStoredToken(token);
+          return user;
         } catch {
-          // ignore
+          // Fall through to the sign-in screen.
         }
       }
-      setBooting(false);
+      return null;
     };
-    boot();
+
+    void resolveUser().then((resolved) => {
+      if (cancelled) return;
+      setUser(resolved);
+      setBooting(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -81,7 +96,7 @@ export default function App() {
         // ignore transient poll errors
       }
     };
-    pollCounts();
+    void pollCounts();
     const timer = setInterval(pollCounts, runningCount > 0 ? 1500 : 4000);
     return () => clearInterval(timer);
   }, [user, runningCount]);
@@ -139,11 +154,7 @@ export default function App() {
   };
 
   if (booting) {
-    return (
-      <div className="min-h-screen bg-[#f4f6f8] text-[#5b6472] flex items-center justify-center text-sm font-mono">
-        ワークスペースを初期化しています...
-      </div>
-    );
+    return <LoadingScreen label="ワークスペースを初期化しています..." />;
   }
 
   if (!user) {
@@ -160,7 +171,7 @@ export default function App() {
 
   if (!user.onboardingCompleted) {
     return (
-      <>
+      <Suspense fallback={<LoadingScreen label="読み込み中..." />}>
         <OnboardingWizard
           onFinished={async () => {
             try {
@@ -173,14 +184,14 @@ export default function App() {
           onNotify={notify}
         />
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      </>
+      </Suspense>
     );
   }
 
   const currentNav = NAV_ITEMS.find((n) => n.id === route);
 
   return (
-    <div className="min-h-screen bg-[#f4f6f8] text-[#111827] flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-canvas text-ink flex flex-col lg:flex-row">
       <Sidebar
         currentRoute={route}
         onNavigate={handleNavigate}
@@ -191,36 +202,37 @@ export default function App() {
 
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Contextual Desktop Breadcrumb Bar */}
-        <div className="hidden lg:flex h-13 px-8 items-center justify-between border-b border-[#dfe3ea] bg-[#ffffff]/95 sticky top-0 z-20 backdrop-blur">
-          <div className="flex items-center gap-2 text-xs text-[#5b6472]">
+        <div className="hidden lg:flex h-13 px-8 items-center justify-between border-b border-line bg-surface/95 sticky top-0 z-20 backdrop-blur">
+          <div className="flex items-center gap-2 text-xs text-muted">
             <button
               type="button"
               onClick={() => handleNavigate('dashboard')}
-              className="hover:text-[#111827] transition-colors"
+              className="hover:text-ink transition-colors"
             >
               Factory
             </button>
-            <span aria-hidden="true" className="text-[#94a3b8]">
+            <span aria-hidden="true" className="text-faint">
               /
             </span>
-            <span className="text-[#111827] font-medium">{currentNav?.label}</span>
+            <span className="text-ink font-medium">{currentNav?.label}</span>
             {(selectedProjectId || selectedTaskId || selectedExecutionId) && (
               <>
-                <span aria-hidden="true" className="text-[#94a3b8]">
+                <span aria-hidden="true" className="text-faint">
                   /
                 </span>
-                <span className="font-mono text-[11px] text-[#0f766e]">
+                <span className="font-mono text-[11px] text-accent">
                   {selectedProjectId ?? selectedTaskId ?? selectedExecutionId}
                 </span>
               </>
             )}
           </div>
-          <div className="text-[11px] font-mono text-[#64748b]">
+          <div className="text-[11px] font-mono text-subtle">
             {user.displayName}
           </div>
         </div>
 
         <main className="flex-1 min-w-0 px-4 py-5 sm:px-6 lg:px-8 lg:py-6 max-w-[1440px] w-full">
+          <Suspense fallback={<p className="text-sm font-mono text-muted">読み込み中...</p>}>
           {route === 'dashboard' && (
             <DashboardView
               onNavigate={handleNavigate}
@@ -281,6 +293,7 @@ export default function App() {
               onNotify={notify}
             />
           )}
+          </Suspense>
         </main>
       </div>
 

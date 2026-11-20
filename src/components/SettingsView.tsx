@@ -124,24 +124,24 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
   };
 
   if (loading || !settings || !user) {
-    return <div className="p-8 text-sm text-[#5b6472]">設定を読み込み中...</div>;
+    return <div className="p-8 text-sm text-muted">設定を読み込み中...</div>;
   }
 
   return (
     <form onSubmit={handleSave} className="space-y-6 max-w-4xl">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-[#111827]">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
             設定
           </h1>
-          <p className="text-xs text-[#5b6472] mt-1">
+          <p className="text-xs text-muted mt-1">
             プロフィール・GitHub連携・プロバイダー認証情報・動作設定を管理します
           </p>
         </div>
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex items-center gap-1.5 rounded-[3px] bg-[#0f766e] hover:bg-[#0d645d] disabled:opacity-50 px-4 py-2 text-xs font-semibold text-[#ffffff] whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 rounded-[3px] bg-accent hover:bg-accent-hover disabled:opacity-50 px-4 py-2 text-xs font-semibold text-white whitespace-nowrap"
         >
           <Save className="w-3.5 h-3.5" aria-hidden="true" />
           変更を保存
@@ -149,16 +149,16 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
       </div>
 
       {/* Profile & Auth */}
-      <section className="rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] p-5 space-y-4">
+      <section className="rounded-[3px] border border-line bg-surface p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <User className="w-4 h-4 text-[#0f766e]" aria-hidden="true" />
-          <h2 className="font-display text-sm font-medium text-[#111827]">
+          <User className="w-4 h-4 text-accent" aria-hidden="true" />
+          <h2 className="font-display text-sm font-medium text-ink">
             ユーザープロフィール・認証
           </h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="set-name" className="block text-xs text-[#5b6472] mb-1">
+            <label htmlFor="set-name" className="block text-xs text-muted mb-1">
               表示名
             </label>
             <input
@@ -166,17 +166,17 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
               required
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#f8f9fb] px-3 py-2 text-sm text-[#111827] focus:border-[#0f766e] focus:bg-[#ffffff] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-elevated px-3 py-2 text-sm text-ink focus:border-accent focus:bg-surface focus:outline-none"
             />
           </div>
           <div>
-            <p className="text-xs text-[#5b6472] mb-1">メールアドレス / ユーザーID</p>
-            <p className="rounded-[3px] border border-[#dfe3ea] bg-[#f8f9fb] px-3 py-2 text-xs font-mono text-[#374151] truncate">
+            <p className="text-xs text-muted mb-1">メールアドレス / ユーザーID</p>
+            <p className="rounded-[3px] border border-line bg-elevated px-3 py-2 text-xs font-mono text-ink-soft truncate">
               {user.email} · {user.id}
             </p>
           </div>
         </div>
-        <div className="flex items-start gap-2 text-xs text-[#5b6472] pt-1">
+        <div className="flex items-start gap-2 text-xs text-muted pt-1">
           <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" aria-hidden="true" />
           <span>
             認証・永続化状態: Firebase はプロビジョニング未承認のため、Node.js サーバー側のセッション認証とユーザー分離ストレージが有効です。APIキーやGitHubトークンがブラウザの localStorage やフロントエンドコードに露出することはありません。
@@ -185,15 +185,15 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
       </section>
 
       {/* GitHub Integration */}
-      <section className="rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] p-5 space-y-4">
+      <section className="rounded-[3px] border border-line bg-surface p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <GitBranch className="w-4 h-4 text-[#0f766e]" aria-hidden="true" />
-            <h2 className="font-display text-sm font-medium text-[#111827]">GitHub 連携設定</h2>
+            <GitBranch className="w-4 h-4 text-accent" aria-hidden="true" />
+            <h2 className="font-display text-sm font-medium text-ink">GitHub 連携設定</h2>
           </div>
           <span
             className={`text-xs font-medium ${
-              settings.github.hasPersonalToken ? 'text-emerald-700' : 'text-[#64748b]'
+              settings.github.hasPersonalToken ? 'text-emerald-700' : 'text-subtle'
             }`}
           >
             {settings.github.hasPersonalToken
@@ -204,7 +204,7 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label htmlFor="gh-user" className="block text-xs text-[#5b6472] mb-1">
+            <label htmlFor="gh-user" className="block text-xs text-muted mb-1">
               GitHub ユーザー名
             </label>
             <input
@@ -212,11 +212,11 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
               value={ghUser}
               onChange={(e) => setGhUser(e.target.value)}
               placeholder="octocat"
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#f8f9fb] px-3 py-2 text-xs text-[#111827] font-mono focus:border-[#0f766e] focus:bg-[#ffffff] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-elevated px-3 py-2 text-xs text-ink font-mono focus:border-accent focus:bg-surface focus:outline-none"
             />
           </div>
           <div>
-            <label htmlFor="gh-org" className="block text-xs text-[#5b6472] mb-1">
+            <label htmlFor="gh-org" className="block text-xs text-muted mb-1">
               デフォルト Organization
             </label>
             <input
@@ -224,25 +224,25 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
               value={ghOrg}
               onChange={(e) => setGhOrg(e.target.value)}
               placeholder="acme-indie"
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#f8f9fb] px-3 py-2 text-xs text-[#111827] font-mono focus:border-[#0f766e] focus:bg-[#ffffff] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-elevated px-3 py-2 text-xs text-ink font-mono focus:border-accent focus:bg-surface focus:outline-none"
             />
           </div>
           <div>
-            <label htmlFor="gh-branch" className="block text-xs text-[#5b6472] mb-1">
+            <label htmlFor="gh-branch" className="block text-xs text-muted mb-1">
               デフォルトブランチ
             </label>
             <input
               id="gh-branch"
               value={ghBranch}
               onChange={(e) => setGhBranch(e.target.value)}
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#f8f9fb] px-3 py-2 text-xs text-[#111827] font-mono focus:border-[#0f766e] focus:bg-[#ffffff] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-elevated px-3 py-2 text-xs text-ink font-mono focus:border-accent focus:bg-surface focus:outline-none"
             />
           </div>
         </div>
 
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[220px]">
-            <label htmlFor="gh-token" className="block text-xs text-[#5b6472] mb-1">
+            <label htmlFor="gh-token" className="block text-xs text-muted mb-1">
               GitHub Personal Access Token（サーバー側保存・将来のGitHub App/OAuth連携用）
             </label>
             <input
@@ -255,7 +255,7 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
                   ? '更新する場合のみ新しいトークンを入力...'
                   : 'ghp_...'
               }
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#f8f9fb] px-3 py-2 text-xs text-[#111827] font-mono focus:border-[#0f766e] focus:bg-[#ffffff] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-elevated px-3 py-2 text-xs text-ink font-mono focus:border-accent focus:bg-surface focus:outline-none"
             />
           </div>
           {settings.github.hasPersonalToken && (
@@ -271,23 +271,23 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
       </section>
 
       {/* Agent Provider Settings */}
-      <section className="rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] p-5 space-y-4">
+      <section className="rounded-[3px] border border-line bg-surface p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <KeyRound className="w-4 h-4 text-[#0f766e]" aria-hidden="true" />
-          <h2 className="font-display text-sm font-medium text-[#111827]">
+          <KeyRound className="w-4 h-4 text-accent" aria-hidden="true" />
+          <h2 className="font-display text-sm font-medium text-ink">
             エージェントプロバイダー認証設定
           </h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2 rounded-[3px] border border-[#dfe3ea] bg-[#f8f9fb] p-3.5">
-            <p className="text-xs font-medium text-[#111827]">Claude Code</p>
+          <div className="space-y-2 rounded-[3px] border border-line bg-elevated p-3.5">
+            <p className="text-xs font-medium text-ink">Claude Code</p>
             <input
               aria-label="Claude Code デフォルトモデル"
               value={claudeModel}
               onChange={(e) => setClaudeModel(e.target.value)}
               placeholder="claude-sonnet-4-5"
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#ffffff] px-2.5 py-1.5 text-xs text-[#111827] font-mono focus:border-[#0f766e] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-surface px-2.5 py-1.5 text-xs text-ink font-mono focus:border-accent focus:outline-none"
             />
             <input
               aria-label="Claude Code API キー"
@@ -299,18 +299,18 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
                   ? `設定済み (${settings.providers.claude_code.maskedApiKey})`
                   : 'ANTHROPIC_API_KEY を設定...'
               }
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#ffffff] px-2.5 py-1.5 text-xs text-[#111827] font-mono focus:border-[#0f766e] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-surface px-2.5 py-1.5 text-xs text-ink font-mono focus:border-accent focus:outline-none"
             />
           </div>
 
-          <div className="space-y-2 rounded-[3px] border border-[#dfe3ea] bg-[#f8f9fb] p-3.5">
-            <p className="text-xs font-medium text-[#111827]">OpenAI Codex</p>
+          <div className="space-y-2 rounded-[3px] border border-line bg-elevated p-3.5">
+            <p className="text-xs font-medium text-ink">OpenAI Codex</p>
             <input
               aria-label="OpenAI Codex デフォルトモデル"
               value={codexModel}
               onChange={(e) => setCodexModel(e.target.value)}
               placeholder="codex-mini-latest"
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#ffffff] px-2.5 py-1.5 text-xs text-[#111827] font-mono focus:border-[#0f766e] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-surface px-2.5 py-1.5 text-xs text-ink font-mono focus:border-accent focus:outline-none"
             />
             <input
               aria-label="OpenAI Codex API キー"
@@ -322,18 +322,18 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
                   ? `設定済み (${settings.providers.openai_codex.maskedApiKey})`
                   : 'OPENAI_API_KEY を設定...'
               }
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#ffffff] px-2.5 py-1.5 text-xs text-[#111827] font-mono focus:border-[#0f766e] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-surface px-2.5 py-1.5 text-xs text-ink font-mono focus:border-accent focus:outline-none"
             />
           </div>
 
-          <div className="space-y-2 rounded-[3px] border border-[#dfe3ea] bg-[#f8f9fb] p-3.5">
-            <p className="text-xs font-medium text-[#111827]">Devin</p>
+          <div className="space-y-2 rounded-[3px] border border-line bg-elevated p-3.5">
+            <p className="text-xs font-medium text-ink">Devin</p>
             <input
               aria-label="Devin Organization ID"
               value={devinOrgId}
               onChange={(e) => setDevinOrgId(e.target.value)}
               placeholder="Devin Org ID"
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#ffffff] px-2.5 py-1.5 text-xs text-[#111827] font-mono focus:border-[#0f766e] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-surface px-2.5 py-1.5 text-xs text-ink font-mono focus:border-accent focus:outline-none"
             />
             <input
               aria-label="Devin API キー"
@@ -345,18 +345,18 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
                   ? `設定済み (${settings.providers.devin.maskedApiKey})`
                   : 'Devin API Key を設定...'
               }
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#ffffff] px-2.5 py-1.5 text-xs text-[#111827] font-mono focus:border-[#0f766e] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-surface px-2.5 py-1.5 text-xs text-ink font-mono focus:border-accent focus:outline-none"
             />
           </div>
 
-          <div className="space-y-2 rounded-[3px] border border-[#dfe3ea] bg-[#f8f9fb] p-3.5">
-            <p className="text-xs font-medium text-[#111827]">Custom Agent Runner</p>
+          <div className="space-y-2 rounded-[3px] border border-line bg-elevated p-3.5">
+            <p className="text-xs font-medium text-ink">Custom Agent Runner</p>
             <input
               aria-label="Custom エンドポイントURL"
               value={customEndpoint}
               onChange={(e) => setCustomEndpoint(e.target.value)}
               placeholder="https://runner.internal/v1"
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#ffffff] px-2.5 py-1.5 text-xs text-[#111827] font-mono focus:border-[#0f766e] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-surface px-2.5 py-1.5 text-xs text-ink font-mono focus:border-accent focus:outline-none"
             />
             <input
               aria-label="Custom Bearer トークン"
@@ -368,21 +368,21 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
                   ? `設定済み (${settings.providers.custom.maskedApiKey})`
                   : 'Bearer Token を設定...'
               }
-              className="w-full rounded-[3px] border border-[#d2d7e2] bg-[#ffffff] px-2.5 py-1.5 text-xs text-[#111827] font-mono focus:border-[#0f766e] focus:outline-none"
+              className="w-full rounded-[3px] border border-line-strong bg-surface px-2.5 py-1.5 text-xs text-ink font-mono focus:border-accent focus:outline-none"
             />
           </div>
         </div>
       </section>
 
       {/* App Preferences */}
-      <section className="rounded-[3px] border border-[#dfe3ea] bg-[#ffffff] p-5 space-y-4">
+      <section className="rounded-[3px] border border-line bg-surface p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <Sliders className="w-4 h-4 text-[#0f766e]" aria-hidden="true" />
-          <h2 className="font-display text-sm font-medium text-[#111827]">アプリケーション設定</h2>
+          <Sliders className="w-4 h-4 text-accent" aria-hidden="true" />
+          <h2 className="font-display text-sm font-medium text-ink">アプリケーション設定</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
           <div>
-            <label htmlFor="pref-poll" className="block text-xs text-[#5b6472] mb-1">
+            <label htmlFor="pref-poll" className="block text-xs text-muted mb-1">
               実行ステータス自動更新間隔（秒）
             </label>
             <input
@@ -392,25 +392,25 @@ export function SettingsView({ onUserUpdated, onNotify }: SettingsViewProps) {
               max={30}
               value={pollSec}
               onChange={(e) => setPollSec(Number(e.target.value) || 2)}
-              className="w-32 rounded-[3px] border border-[#d2d7e2] bg-[#f8f9fb] px-3 py-1.5 text-xs text-[#111827] font-mono focus:border-[#0f766e] focus:bg-[#ffffff] focus:outline-none"
+              className="w-32 rounded-[3px] border border-line-strong bg-elevated px-3 py-1.5 text-xs text-ink font-mono focus:border-accent focus:bg-surface focus:outline-none"
             />
           </div>
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs text-[#374151]">
+            <label className="flex items-center gap-2 text-xs text-ink-soft">
               <input
                 type="checkbox"
                 checked={notifyDone}
                 onChange={(e) => setNotifyDone(e.target.checked)}
-                className="rounded border-[#d2d7e2] bg-[#ffffff] text-[#0f766e]"
+                className="rounded border-line-strong bg-surface text-accent"
               />
               実行完了時にトースト通知を表示する
             </label>
-            <label className="flex items-center gap-2 text-xs text-[#374151]">
+            <label className="flex items-center gap-2 text-xs text-ink-soft">
               <input
                 type="checkbox"
                 checked={notifyFail}
                 onChange={(e) => setNotifyFail(e.target.checked)}
-                className="rounded border-[#d2d7e2] bg-[#ffffff] text-[#0f766e]"
+                className="rounded border-line-strong bg-surface text-accent"
               />
               実行失敗・接続エラー時に通知を表示する
             </label>
